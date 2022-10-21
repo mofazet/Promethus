@@ -19,6 +19,7 @@ local defaults = {
       kubeSchedulerSelector: 'job="kube-scheduler"',
       kubeControllerManagerSelector: 'job="kube-controller-manager"',
       kubeApiserverSelector: 'job="apiserver"',
+      coreDNSSelector: 'job="coredns"',
       podLabel: 'pod',
       runbookURLPattern: 'https://runbooks.prometheus-operator.dev/runbooks/kubernetes/%s',
       diskDeviceSelector: 'device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"',
@@ -26,6 +27,20 @@ local defaults = {
     },
   },
   kubeProxy:: false,
+  coredns: {
+    name: 'coredns',
+    slos: {
+      responseErrors: {
+        target: '99.99',
+        window: '2w',
+      },
+      responseLatency: {
+        target: '99',
+        latency: '0.032',  // must exist as le label
+        window: '2w',
+      },
+    },
+  },
 };
 
 function(params) {
@@ -313,17 +328,17 @@ function(params) {
   },
 
 
-  serviceMonitorCoreDNS: {
+  'coredns-ServiceMonitor': {
     apiVersion: 'monitoring.coreos.com/v1',
     kind: 'ServiceMonitor',
     metadata: k8s._metadata {
-      name: 'coredns',
-      labels+: { 'app.kubernetes.io/name': 'coredns' },
+      name: k8s._config.coredns.name,
+      labels+: { 'app.kubernetes.io/name': k8s._config.coredns.name },
     },
     spec: {
       jobLabel: 'app.kubernetes.io/name',
       selector: {
-        matchLabels: { 'k8s-app': 'kube-dns' },
+        matchLabels: { 'k8s-app': k8s._config.coredns.name },
       },
       namespaceSelector: {
         matchNames: ['kube-system'],
@@ -347,5 +362,78 @@ function(params) {
     },
   },
 
+  'coredns-slo-response-errors': {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: k8s._config.coredns.name + '-response-errors',
+      labels+: {
+        'app.kubernetes.io/name': k8s._config.coredns.name,
+        'app.kubernetes.io/component': 'controller',
+        prometheus: 'k8s',  // TODO
+        'pyrra.dev/component': k8s._config.coredns.name,
+        role: 'alert-rules',
+      },
+    },
+    spec: {
+      target: k8s._config.coredns.slos.responseErrors.target,
+      window: k8s._config.coredns.slos.responseErrors.window,
+      description: |||
+        CoreDNS runs within a Kubernetes cluster and resolves internal requests and forward external requests.
+        If CoreDNS fails to answer requests applications might be unable to make requests.
+      |||,
+      indicator: {
+        ratio: {
+          errors: {
+            metric: 'coredns_dns_responses_total{%s,rcode="SERVFAIL"}' % [
+              k8s._config.mixin._config.coreDNSSelector,
+            ],
+          },
+          total: {
+            metric: 'coredns_dns_responses_total{%s}' % [
+              k8s._config.mixin._config.coreDNSSelector,
+            ],
+          },
+        },
+      },
+    },
+  },
 
+  'coredns-slo-response-latency': {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: k8s._config.coredns.name + '-response-latency',
+      labels+: {
+        'app.kubernetes.io/name': 'coredns',
+        'app.kubernetes.io/component': 'controller',
+        prometheus: 'k8s',  // TODO
+        'pyrra.dev/component': 'coredns',
+        role: 'alert-rules',
+      },
+    },
+    spec: {
+      target: k8s._config.coredns.slos.responseLatency.target,
+      window: k8s._config.coredns.slos.responseLatency.window,
+      description: |||
+        CoreDNS runs within a Kubernetes cluster and resolves internal requests and forward external requests.
+        If CoreDNS gets too slow it might have an impact on the latency of other applications in this cluster.
+      |||,
+      indicator: {
+        latency: {
+          success: {
+            metric: 'coredns_dns_request_duration_seconds_bucket{%s,le="%s"}' % [
+              k8s._config.mixin._config.coreDNSSelector,
+              k8s._config.coredns.slos.responseLatency.latency,
+            ],
+          },
+          total: {
+            metric: 'coredns_dns_request_duration_seconds_count{%s}' % [
+              k8s._config.mixin._config.coreDNSSelector,
+            ],
+          },
+        },
+      },
+    },
+  },
 }
