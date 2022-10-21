@@ -27,6 +27,18 @@ local defaults = {
     },
   },
   kubeProxy:: false,
+  kubelet: {
+    slos: {
+      requestErrors: {
+        target: '99',
+        window: '2w',
+      },
+      runtimeErrors: {
+        target: '99.5',
+        window: '2w',
+      },
+    },
+  },
   coredns: {
     name: 'coredns',
     slos: {
@@ -102,7 +114,7 @@ function(params) {
     },
   },
 
-  serviceMonitorKubelet: {
+  kubeletServiceMonitor: {
     apiVersion: 'monitoring.coreos.com/v1',
     kind: 'ServiceMonitor',
     metadata: k8s._metadata {
@@ -195,6 +207,79 @@ function(params) {
       },
       namespaceSelector: {
         matchNames: ['kube-system'],
+      },
+    },
+  },
+
+  'kubelet-slo-request-errors': {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: 'kubelet-request-errors',
+      labels+: {
+        'app.kubernetes.io/name': 'kubelet',
+        prometheus: 'k8s',  //TODO
+        role: 'alert-rules',
+        'pyrra.dev/component': 'kubelet',
+      },
+    },
+    spec: {
+      target: k8s._config.kubelet.slos.requestErrors.target,
+      window: k8s._config.kubelet.slos.requestErrors.window,
+      description: |||
+        The kubelet is the primary “node agent” that runs on each node.
+        The kubelet ensures that the containers are running and healthy.
+        If these requests are failing the Kubelet might not know what to run exactly.
+      |||,
+      indicator: {
+        ratio: {
+          errors: {
+            metric: 'rest_client_requests_total{%s,code=~"5.."}' % [
+              k8s._config.mixin._config.kubeletSelector,
+            ],
+          },
+          total: {
+            metric: 'rest_client_requests_total{%s}' % [
+              k8s._config.mixin._config.kubeletSelector,
+            ],
+          },
+        },
+      },
+    },
+  },
+
+  'kubelet-slo-runtime-errors': {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: 'kubelet-runtime-errors',
+      labels+: {
+        'app.kubernetes.io/name': 'kubelet',
+        prometheus: 'k8s',  //TODO
+        role: 'alert-rules',
+        'pyrra.dev/component': 'kubelet',
+      },
+    },
+    spec: {
+      target: k8s._config.kubelet.slos.runtimeErrors.target,
+      window: k8s._config.kubelet.slos.runtimeErrors.window,
+      description: |||
+        The kubelet is the primary “node agent” that runs on each node.
+        If there are runtime errors the kubelet might be unable to check the containers are running and healthy.
+      |||,
+      indicator: {
+        ratio: {
+          errors: {
+            metric: 'kubelet_runtime_operations_errors_total{%s}' % [
+              k8s._config.mixin._config.kubeletSelector,
+            ],
+          },
+          total: {
+            metric: 'kubelet_runtime_operations_total{%s}' % [
+              k8s._config.mixin._config.kubeletSelector,
+            ],
+          },
+        },
       },
     },
   },

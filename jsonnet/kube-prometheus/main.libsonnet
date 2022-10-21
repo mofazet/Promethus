@@ -115,7 +115,7 @@ local utils = import './lib/utils.libsonnet';
       image: $.values.common.images.prometheusAdapter,
       prometheusURL: 'http://prometheus-' + $.values.prometheus.name + '.' + $.values.prometheus.namespace + '.svc:9090/',
       rangeIntervals+: {
-        kubelet: utils.rangeInterval($.kubernetesControlPlane.serviceMonitorKubelet.spec.endpoints[0].interval),
+        kubelet: utils.rangeInterval($.kubernetesControlPlane.kubeletServiceMonitor.spec.endpoints[0].interval),
         nodeExporter: utils.rangeInterval($.nodeExporter.serviceMonitor.spec.endpoints[0].interval),
       },
     },

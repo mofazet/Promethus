@@ -357,64 +357,6 @@ function(params) {
     },
   },
 
-  'slo-kubelet-request-errors': {
-    apiVersion: 'pyrra.dev/v1alpha1',
-    kind: 'ServiceLevelObjective',
-    metadata: {
-      name: 'kubelet-request-errors',
-      namespace: 'kube-system',
-      labels: {
-        prometheus: 'k8s',
-        role: 'alert-rules',
-        'pyrra.dev/component': 'kubelet',
-      },
-    },
-    spec: {
-      target: '99',
-      window: '2w',
-      description: '',
-      indicator: {
-        ratio: {
-          errors: {
-            metric: 'rest_client_requests_total{job="kubelet",code=~"5.."}',
-          },
-          total: {
-            metric: 'rest_client_requests_total{job="kubelet"}',
-          },
-        },
-      },
-    },
-  },
-
-  'slo-kubelet-runtime-errors': {
-    apiVersion: 'pyrra.dev/v1alpha1',
-    kind: 'ServiceLevelObjective',
-    metadata: {
-      name: 'kubelet-runtime-errors',
-      namespace: 'kube-system',
-      labels: {
-        prometheus: 'k8s',
-        role: 'alert-rules',
-        'pyrra.dev/component': 'kubelet',
-      },
-    },
-    spec: {
-      target: '99',
-      window: '2w',
-      description: '',
-      indicator: {
-        ratio: {
-          errors: {
-            metric: 'kubelet_runtime_operations_errors_total{job="kubelet"}',
-          },
-          total: {
-            metric: 'kubelet_runtime_operations_total{job="kubelet"}',
-          },
-        },
-      },
-    },
-  },
-
   'slo-prometheus-rule-evaluation-failures': {
     apiVersion: 'pyrra.dev/v1alpha1',
     kind: 'ServiceLevelObjective',
