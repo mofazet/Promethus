@@ -19,6 +19,7 @@ local defaults = {
       kubeSchedulerSelector: 'job="kube-scheduler"',
       kubeControllerManagerSelector: 'job="kube-controller-manager"',
       kubeApiserverSelector: 'job="apiserver"',
+      kubeProxySelector: 'job="kube-proxy"',
       coreDNSSelector: 'job="coredns"',
       podLabel: 'pod',
       runbookURLPattern: 'https://runbooks.prometheus-operator.dev/runbooks/kubernetes/%s',
@@ -26,7 +27,6 @@ local defaults = {
       hostNetworkInterfaceSelector: 'device!~"veth.+"',
     },
   },
-  kubeProxy:: false,
   kubelet: {
     slos: {
       requestErrors: {
@@ -35,6 +35,28 @@ local defaults = {
       },
       runtimeErrors: {
         target: '99.5',
+        window: '2w',
+      },
+    },
+  },
+  kubeControllerManager: {
+    slos: {
+      requestErrors: {
+        target: '99',
+        window: '2w',
+      },
+    },
+  },
+  kubeProxy: false,
+  kubeProxyConfig: {  // different name for backwards compatability
+    slos: {
+      syncRulesLatency: {
+        target: '90',
+        latency: '0.512',  // must exist as le label
+        window: '2w',
+      },
+      requestErrors: {
+        target: '90', // kube-proxy makes very few requests
         window: '2w',
       },
     },
@@ -234,7 +256,7 @@ function(params) {
       indicator: {
         ratio: {
           errors: {
-            metric: 'rest_client_requests_total{%s,code=~"5.."}' % [
+            metric: 'rest_client_requests_total{%s,code=~"5..|<error>"}' % [
               k8s._config.mixin._config.kubeletSelector,
             ],
           },
@@ -284,7 +306,7 @@ function(params) {
     },
   },
 
-  serviceMonitorKubeControllerManager: {
+  kubeControllerManagerServiceMonitor: {
     apiVersion: 'monitoring.coreos.com/v1',
     kind: 'ServiceMonitor',
     metadata: k8s._metadata {
@@ -314,6 +336,43 @@ function(params) {
       },
       namespaceSelector: {
         matchNames: ['kube-system'],
+      },
+    },
+  },
+
+  kubeControllerManagerSLORequestErrors: {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: 'kube-controller-manager-request-errors',
+      labels+: {
+        'app.kubernetes.io/name': 'kube-controller-manager',
+        prometheus: 'k8s',  //TODO
+        role: 'alert-rules',
+        'pyrra.dev/component': 'kube-controller-manager',
+      },
+    },
+    spec: {
+      target: k8s._config.kubeControllerManager.slos.requestErrors.target,
+      window: k8s._config.kubeControllerManager.slos.requestErrors.window,
+      description: |||
+        The Kubernetes controller manager is a daemon that embeds the core control loops shipped with Kubernetes. 
+        In applications of robotics and automation, a control loop is a non-terminating loop that regulates the state of the system. 
+        In Kubernetes, a controller is a control loop that watches the shared state of the cluster through the apiserver and makes changes attempting to move the current state towards the desired state. Examples of controllers that ship with Kubernetes today are the replication controller, endpoints controller, namespace controller, and serviceaccounts controller.
+      |||,
+      indicator: {
+        ratio: {
+          errors: {
+            metric: 'rest_client_requests_total{%s,code=~"5..|<error>"}' % [
+              k8s._config.mixin._config.kubeControllerManagerSelector,
+            ],
+          },
+          total: {
+            metric: 'rest_client_requests_total{%s}' % [
+              k8s._config.mixin._config.kubeControllerManagerSelector,
+            ],
+          },
+        },
       },
     },
   },
@@ -412,6 +471,80 @@ function(params) {
     },
   },
 
+  [if (defaults + params).kubeProxy then 'kubeProxySLOSyncRulesLatency']: {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: 'kube-proxy-sync-rules-latency',
+      labels+: {
+        'app.kubernetes.io/name': 'kube-proxy',
+        'app.kubernetes.io/component': 'controller',  //TODO
+        prometheus: 'k8s',  // TODO
+        'pyrra.dev/component': 'kube-proxy',
+        role: 'alert-rules',
+      },
+    },
+    spec: {
+      target: k8s._config.kubeProxyConfig.slos.syncRulesLatency.target,
+      window: k8s._config.kubeProxyConfig.slos.syncRulesLatency.window,
+      description: |||
+        The Kubernetes network proxy runs on each node. 
+        This reflects services as defined in the Kubernetes API on each node and can do simple TCP, UDP
+        stream forwarding or round robin TCP,UDP forwarding across a set of backends. 
+
+        If this is firing the networks might not be synchronized fast enough and services might be unable to reach the containers they want to reach.
+      |||,
+      indicator: {
+        latency: {
+          success: {
+            metric: 'kubeproxy_sync_proxy_rules_duration_seconds_bucket{%s,le="%s"}' % [
+              k8s._config.mixin._config.kubeProxySelector,
+              k8s._config.kubeProxyConfig.slos.syncRulesLatency.latency,
+            ],
+          },
+          total: {
+            metric: 'kubeproxy_sync_proxy_rules_duration_seconds_count{%s}' % [
+              k8s._config.mixin._config.kubeProxySelector,
+            ],
+          },
+        },
+      },
+    },
+  },
+
+  kubeProxySLORequestErrors: {
+    apiVersion: 'pyrra.dev/v1alpha1',
+    kind: 'ServiceLevelObjective',
+    metadata: k8s._metadata {
+      name: 'kube-proxy-request-errors',
+      labels+: {
+        'app.kubernetes.io/name': 'kube-proxy',
+        'app.kubernetes.io/component': 'controller',  //TODO
+        prometheus: 'k8s',  // TODO
+        'pyrra.dev/component': 'kube-proxy',
+        role: 'alert-rules',
+      },
+    },
+    spec: {
+      target: k8s._config.kubeProxyConfig.slos.requestErrors.target,
+      window: k8s._config.kubeProxyConfig.slos.requestErrors.window,
+      description: '',
+      indicator: {
+        ratio: {
+          errors: {
+            metric: 'rest_client_requests_total{%s,code=~"5..|<error>"}' % [
+              k8s._config.mixin._config.kubeProxySelector,
+            ],
+          },
+          total: {
+            metric: 'rest_client_requests_total{%s}' % [
+              k8s._config.mixin._config.kubeProxySelector,
+            ],
+          },
+        },
+      },
+    },
+  },
 
   'coredns-ServiceMonitor': {
     apiVersion: 'monitoring.coreos.com/v1',

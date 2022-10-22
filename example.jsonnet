@@ -12,6 +12,9 @@ local kp =
       common+: {
         namespace: 'monitoring',
       },
+      kubernetesControlPlane+: {
+        kubeProxy:true,
+      },
     },
   };
 
