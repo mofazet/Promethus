@@ -167,6 +167,7 @@ function(params) {
       image: pyrra._config.image,
       args: [
         'kubernetes',
+        '--generic-rules',
       ],
       // resources: pyrra._config.resources,
       ports: [{ containerPort: pyrra._config.port }],

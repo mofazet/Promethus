@@ -133,8 +133,8 @@ local utils = import './lib/utils.libsonnet';
     },
     pyrra: {
       namespace: $.values.common.namespace,
-      version: $.values.common.versions.nodeExporter,
-      image: $.values.common.images.nodeExporter,
+      version: $.values.common.versions.pyrra,
+      image: $.values.common.images.pyrra,
     },
   },
 

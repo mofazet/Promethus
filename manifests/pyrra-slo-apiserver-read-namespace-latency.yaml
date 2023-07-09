@@ -1,0 +1,19 @@
+apiVersion: pyrra.dev/v1alpha1
+kind: ServiceLevelObjective
+metadata:
+  labels:
+    prometheus: k8s
+    pyrra.dev/component: apiserver
+    role: alert-rules
+  name: apiserver-read-namespace-latency
+  namespace: kube-system
+spec:
+  description: ""
+  indicator:
+    latency:
+      success:
+        metric: apiserver_request_slo_duration_seconds_bucket{job="apiserver",scope=~"namespace|",verb=~"LIST|GET",subresource!~"/(healthz|livez|readyz)",le="5"}
+      total:
+        metric: apiserver_request_slo_duration_seconds_count{job="apiserver",scope=~"namespace|",verb=~"LIST|GET",subresource!~"/(healthz|livez|readyz)"}
+  target: "99"
+  window: 2w
