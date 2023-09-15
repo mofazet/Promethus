@@ -22,4 +22,22 @@ function(params)
   // Safety check
   assert std.isObject(config.resources);
 
-  (pyrra + config).pyrra
+  (pyrra + config).pyrra {
+    // Enable generic rules for kube-promethues by default
+    kubernetesDeployment+: {
+      spec+: {
+        template+: {
+          spec+: {
+            containers: [
+              c {
+                args+: [
+                  '--generic-rules',
+                ],
+              }
+              for c in super.containers
+            ],
+          },
+        },
+      },
+    },
+  }
