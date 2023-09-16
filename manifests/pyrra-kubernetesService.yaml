@@ -5,7 +5,7 @@ metadata:
     app.kubernetes.io/component: kubernetes
     app.kubernetes.io/name: pyrra
     app.kubernetes.io/part-of: kube-prometheus
-    app.kubernetes.io/version: 0.6.3
+    app.kubernetes.io/version: 0.6.4
   name: pyrra-kubernetes
   namespace: monitoring
 spec:
@@ -13,6 +13,9 @@ spec:
   - name: http
     port: 9444
     targetPort: 9444
+  - name: webhooks
+    port: 9443
+    targetPort: 9443
   selector:
     app.kubernetes.io/component: kubernetes
     app.kubernetes.io/name: pyrra

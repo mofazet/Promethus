@@ -4,15 +4,15 @@ metadata:
   labels:
     prometheus: k8s
     role: alert-rules
-  name: apiserver-read-response-errors
+  name: kubelet-runtime-errors
   namespace: monitoring
 spec:
   description: ""
   indicator:
     ratio:
       errors:
-        metric: apiserver_request_total{component="apiserver",verb=~"LIST|GET",code=~"5.."}
+        metric: kubelet_runtime_operations_errors_total{job="kubelet"}
       total:
-        metric: apiserver_request_total{component="apiserver",verb=~"LIST|GET"}
+        metric: kubelet_runtime_operations_total{job="kubelet"}
   target: "99"
   window: 2w

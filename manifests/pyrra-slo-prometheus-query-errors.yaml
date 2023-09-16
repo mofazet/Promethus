@@ -3,7 +3,6 @@ kind: ServiceLevelObjective
 metadata:
   labels:
     prometheus: k8s
-    pyrra.dev/component: prometheus
     role: alert-rules
   name: prometheus-query-errors
   namespace: monitoring
