@@ -111,7 +111,7 @@
           "subdir": "jsonnet"
         }
       },
-      "version": "release-0.6",
+      "version": "main",
       "name": "pyrra"
     },
     {

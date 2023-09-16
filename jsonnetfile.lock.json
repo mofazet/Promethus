@@ -148,11 +148,11 @@
       "source": {
         "git": {
           "remote": "https://github.com/pyrra-dev/pyrra.git",
-          "subdir": "config/crd/bases"
+          "subdir": "jsonnet"
         }
       },
-      "version": "551856d42dff02ec38c5b0ea6a2d99c4cb127e82",
-      "sum": "bY/Pcrrbynguq8/HaI88cQ3B2hLv/xc+76QILY7IL+g=",
+      "version": "f638b929cfc2f55020cadfa70f67942bad865f7a",
+      "sum": "l00ZaFyXmEf6i+59sknEp8Vxsv7TaohubjnKSutztEg=",
       "name": "pyrra"
     },
     {
