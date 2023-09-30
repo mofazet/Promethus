@@ -56,7 +56,7 @@ local defaults = {
         window: '2w',
       },
       requestErrors: {
-        target: '90', // kube-proxy makes very few requests
+        target: '90',  // kube-proxy makes very few requests
         window: '2w',
       },
     },
